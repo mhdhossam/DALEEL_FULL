@@ -5,10 +5,13 @@ const PINK = "linear-gradient(135deg, hsl(338, 82%, 58%) 0%, hsl(338, 100%, 72%)
 
 // ─── Animated Counter ──────────────────────────────────────────────────────────
 function AnimatedNumber({ value }: { value: string }) {
-    // Parse prefix (e.g. "+"), numeric part, and suffix (e.g. "٪")
-    const match = value.match(/^([^\d]*)([\d]+)(.*)$/);
-    
-    // If no match (e.g. "مجاني"), just render the value directly
+    // Run the hook on every render; non-numeric values use a zero target and render statically.
+    const match = value.match(/^([^\\d]*)([\\d]+)(.*)$/);
+    const prefix = match?.[1] ?? "";
+    const target = match ? Number.parseInt(match[2], 10) : 0;
+    const suffix = match?.[3] ?? "";
+    const { ref, count } = useCountUp(target);
+
     if (!match) {
         return (
             <span
@@ -19,12 +22,6 @@ function AnimatedNumber({ value }: { value: string }) {
             </span>
         );
     }
-
-    const prefix = match[1] ?? "";
-    const target = parseInt(match[2], 10);
-    const suffix = match[3] ?? "";
-
-    const { ref, count } = useCountUp(target);
 
     return (
         <span

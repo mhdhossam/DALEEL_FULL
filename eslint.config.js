@@ -21,6 +21,8 @@ export default tseslint.config(
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-unused-vars": "off",
+      // Existing API adapters use any at legacy boundaries; keep visible as warnings during typed migration.
+      "@typescript-eslint/no-explicit-any": "warn",
     },
   },
 );

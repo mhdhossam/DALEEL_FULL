@@ -7,6 +7,6 @@ describe("cn", () => {
   });
 
   it("combines ordinary classes and ignores false values", () => {
-    expect(cn("flex", false && "hidden", "gap-2")).toBe("flex gap-2");
+    expect(cn("flex", false, "gap-2")).toBe("flex gap-2");
   });
 });

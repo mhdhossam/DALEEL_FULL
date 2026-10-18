@@ -32,10 +32,15 @@ export const AccessibilityWidget: React.FC = () => {
   // Load initial configurations from localStorage
   useEffect(() => {
     const savedContrast = localStorage.getItem("a11y-contrast");
-    if (savedContrast) setContrastMode(savedContrast as any);
-    
+    if (savedContrast === "normal" || savedContrast === "contrast" || savedContrast === "contrast-dark") {
+      setContrastMode(savedContrast);
+    }
+
     setIsMonochrome(localStorage.getItem("a11y-monochrome") === "true");
-    setTextSize((localStorage.getItem("a11y-text-size") as any) || "normal");
+    const savedTextSize = localStorage.getItem("a11y-text-size");
+    if (savedTextSize === "normal" || savedTextSize === "large" || savedTextSize === "xlarge") {
+      setTextSize(savedTextSize);
+    }
     setIsReadableFont(localStorage.getItem("a11y-readable-font") === "true");
     setIsTextSpacing(localStorage.getItem("a11y-text-spacing") === "true");
     setIsHighlightLinks(localStorage.getItem("a11y-highlight-links") === "true");

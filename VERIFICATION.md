@@ -1,5 +1,13 @@
 # Frontend Verification
 
-GitHub Actions runs `npm ci`, `npm run build`, `npm test`, and `npm run lint` on pushes and pull requests to the `frontend` branch.
+Recorded by GitHub Actions on 2026-10-18 02:56 UTC.
 
-This file is a checklist only; it does not claim those commands passed. See the repository's Actions tab for the actual command results.
+| Check | Result |
+|---|---|
+| Synchronize package lock | PASS (exit 0) |
+| Clean dependency install (npm ci) | PASS (exit 0) |
+| Production build (npm run build) | PASS (exit 0) |
+| Unit tests (npm test) | PASS (exit 0) |
+| Lint (npm run lint) | FAIL (exit 1) |
+
+A result is marked PASS only when the command returned exit code 0.

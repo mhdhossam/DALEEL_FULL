@@ -13,7 +13,7 @@ The current project package is split into two applications:
 
 ## Current implementation snapshot
 
-See [Implementation results and verification status](docs/IMPLEMENTATION_RESULTS.md) for the features identified in the supplied project archives and the checks that still need to be run.
+See [Implementation results and verification status](docs/IMPLEMENTATION_RESULTS.md) for source-inspection findings and checks still to run. The application source is connected as a Git submodule: [frontend source](https://github.com/mhdhossam/DALEELFULL/tree/main/daleel_frontend_generic_content_admin) and [backend source](https://github.com/mhdhossam/DALEELFULL/tree/main/daleel_backend_generic_content_admin). Clone with `git clone --recurse-submodules https://github.com/mhdhossam/DALEEL_FULL.git` to check out the source under `daleel-source/`.
 
 ## Local setup
 
@@ -38,4 +38,4 @@ Do not use development defaults such as a placeholder secret key, wildcard hosts
 
 ## Project status
 
-This README documents the supplied application package; it does not claim that a deployment or automated test suite has passed. The source tree still needs to be mirrored into this GitHub repository and verified with the checks listed above.
+This README documents the supplied application package; it does not claim that a deployment or automated test suite has passed. The frontend/backend source is linked through the `daleel-source` submodule at a pinned commit. The code has not been executed or tested as part of this documentation update; run the checks listed above before claiming a successful build or deployment.

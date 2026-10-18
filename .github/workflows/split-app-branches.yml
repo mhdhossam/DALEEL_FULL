@@ -1,485 +1,69 @@
-name: Split and verify Daleel apps
+name: Daleel component CI
 
 on:
   push:
-    branches: [main]
-    paths:
-      - ".github/workflows/split-app-branches.yml"
-      - "README.md"
-      - "docs/**"
+    branches: [frontend, backend]
+  pull_request:
+    branches: [frontend, backend]
   workflow_dispatch:
 
 permissions:
-  contents: write
-
-concurrency:
-  group: daleel-app-branch-split
-  cancel-in-progress: false
+  contents: read
 
 jobs:
   frontend:
-    name: Build frontend branch
+    name: Frontend build, unit tests, and lint
+    if: github.ref == 'refs/heads/frontend' || github.base_ref == 'frontend'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout target repository
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository }}
-          ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-          path: target
-
-      - name: Checkout source repository
-        shell: bash
-        run: git clone --depth 1 --branch main https://github.com/mhdhossam/DALEELFULL.git upstream
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "22"
           cache: npm
-          cache-dependency-path: upstream/daleel_frontend_generic_content_admin/package-lock.json
-
-      - name: Prepare frontend branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          SOURCE="$GITHUB_WORKSPACE/upstream/daleel_frontend_generic_content_admin"
-          TARGET="$GITHUB_WORKSPACE/target"
-          test -f "$SOURCE/package.json"
-          cd "$TARGET"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          if git ls-remote --exit-code --heads origin frontend >/dev/null 2>&1; then
-            git fetch origin frontend
-            git checkout -B frontend origin/frontend
-          else
-            git checkout -B frontend origin/main
-          fi
-          git ls-files -z | xargs -0 -r git rm -f --ignore-unmatch >/dev/null
-          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf -- {} +
-          cp -a "$SOURCE"/. .
-          cat > README.md <<'EOF'
-          # Daleel Frontend
-
-          React + TypeScript + Vite frontend for the Daleel accessibility-focused platform.
-
-          ## Setup
-
-          Use Node.js 22 or later.
-
-          ```bash
-          npm ci
-          npm run dev
-          ```
-
-          The Vite development server proxies `/api`, `/data`, and `/media` to `http://127.0.0.1:8000`. Run the Django backend from the `backend` branch separately for API-backed features.
-
-          ## Checks
-
-          ```bash
-          npm run build
-          npm test
-          npm run lint
-          ```
-
-          See [VERIFICATION.md](VERIFICATION.md) for the most recent recorded command outcomes.
-          EOF
-          # Keep local credentials and generated artifacts out of Git.
-          cat >> .gitignore <<'EOF'
-
-          # Local environment files
-          .env
-          .env.*
-          !.env.example
-
-          # Test/build outputs
-          coverage/
-          .vitest/
-          EOF
-          mkdir -p src/test
-          cat > src/test/setup.ts <<'EOF'
-          import "@testing-library/jest-dom/vitest";
-          import { cleanup } from "@testing-library/react";
-          import { afterEach } from "vitest";
-
-          afterEach(() => cleanup());
-          EOF
-          cat > src/lib/utils.test.ts <<'EOF'
-          import { describe, expect, it } from "vitest";
-          import { cn } from "./utils";
-
-          describe("cn", () => {
-            it("merges conflicting Tailwind classes in favor of the last class", () => {
-              expect(cn("p-2", "p-4")).toBe("p-4");
-            });
-
-            it("combines conditional class values and drops false values", () => {
-              expect(cn("flex", false && "hidden", "gap-2")).toBe("flex gap-2");
-            });
-          });
-          EOF
-          cat > /tmp/frontend-checks.sh <<'EOF'
-          #!/usr/bin/env bash
-          set +e
-          cd "$1"
-          npm ci > /tmp/daleel-npm-ci.log 2>&1
-          install_status=$?
-          tail -n 60 /tmp/daleel-npm-ci.log || true
-          if [ "$install_status" -eq 0 ]; then
-            npm run build > /tmp/daleel-frontend-build.log 2>&1
-            build_status=$?
-            tail -n 100 /tmp/daleel-frontend-build.log || true
-            npm test > /tmp/daleel-frontend-test.log 2>&1
-            test_status=$?
-            tail -n 100 /tmp/daleel-frontend-test.log || true
-            npm run lint > /tmp/daleel-frontend-lint.log 2>&1
-            lint_status=$?
-            tail -n 100 /tmp/daleel-frontend-lint.log || true
-          else
-            build_status=125
-            test_status=125
-            lint_status=125
-          fi
-          status() { if [ "$1" -eq 0 ]; then echo "PASS"; elif [ "$1" -eq 125 ]; then echo "SKIPPED (dependency installation failed)"; else echo "FAIL (exit $1)"; fi; }
-          {
-            echo "# Frontend Verification"
-            echo
-            echo "Generated by GitHub Actions on $(date -u '+%Y-%m-%d %H:%M UTC')."
-            echo
-            echo "| Check | Result |"
-            echo "|---|---|"
-            echo "| `npm ci` | $(status "$install_status") |"
-            echo "| `npm run build` | $(status "$build_status") |"
-            echo "| `npm test` | $(status "$test_status") |"
-            echo "| `npm run lint` | $(status "$lint_status") |"
-            echo
-            echo "A failed or skipped check is not reported as passing. Inspect the corresponding GitHub Actions step logs for diagnostics."
-          } > VERIFICATION.md
-          exit 0
-          EOF
-          bash /tmp/frontend-checks.sh "$TARGET"
-          git add -A
-          git commit -m "feat: split Daleel frontend into dedicated branch"
-          git push origin frontend
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Build frontend
+        run: npm run build
+      - name: Run unit tests
+        run: npm test
+      - name: Lint frontend
+        run: npm run lint
 
   backend:
-    name: Check backend branch
+    name: Backend migrations, Django checks, and tests
+    if: github.ref == 'refs/heads/backend' || github.base_ref == 'backend'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout target repository
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository }}
-          ref: main
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
-          path: target
-
-      - name: Checkout source repository
-        shell: bash
-        run: git clone --depth 1 --branch main https://github.com/mhdhossam/DALEELFULL.git upstream
-
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-
-      - name: Prepare and verify backend branch
-        shell: bash
+      - name: Install backend dependencies
         run: |
-          set -euo pipefail
-          SOURCE="$GITHUB_WORKSPACE/upstream/daleel_backend_generic_content_admin"
-          TARGET="$GITHUB_WORKSPACE/target"
-          test -f "$SOURCE/manage.py"
-          cd "$TARGET"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin main
-          if git ls-remote --exit-code --heads origin backend >/dev/null 2>&1; then
-            git fetch origin backend
-            git checkout -B backend origin/backend
-          else
-            git checkout -B backend origin/main
-          fi
-          git ls-files -z | xargs -0 -r git rm -f --ignore-unmatch >/dev/null
-          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf -- {} +
-          cp -a "$SOURCE"/. .
-          cat > .gitignore <<'EOF'
-          # Secrets and local configuration
-          .env
-          .env.*
-          !.env.example
-
-          # Python / virtual environments
-          __pycache__/
-          *.py[cod]
-          *.egg-info/
-          .venv/
-          venv/
-
-          # Django local/runtime files
-          db.sqlite3
-          db.sqlite3-*
-          staticfiles/
-          media/uploads/
-          media/courses/
-
-          # Editors and OS files
-          .idea/
-          .vscode/
-          .DS_Store
-          EOF
-          cat > requirements.txt <<'EOF'
-          Django>=5.1,<5.3
-          djangorestframework>=3.15,<3.17
-          djangorestframework-simplejwt>=5.3,<6
-          django-cors-headers>=4.4,<5
-          django-filter>=24.3,<26
-          whitenoise>=6.8,<7
-          django-cloudinary-storage>=0.3,<0.4
-          cloudinary>=1.41,<2
-          requests>=2.32,<3
-          Pillow>=10.4,<13
-          psycopg[binary]>=3.2,<4
-          python-dotenv>=1.0,<2
-          EOF
-          cat > .env.example <<'EOF'
-          # Local development defaults. Replace the secret and set DEBUG=False in production.
-          DJANGO_SECRET_KEY=replace-with-a-long-random-secret
-          DEBUG=True
-          ALLOWED_HOSTS=localhost,127.0.0.1,[::1]
-          CORS_ALLOWED_ORIGINS=http://localhost:8080,http://127.0.0.1:8080
-          CSRF_TRUSTED_ORIGINS=
-
-          # Leave DB_NAME empty to use a local SQLite database.
-          DB_NAME=
-          DB_USER=
-          DB_PASSWORD=
-          DB_HOST=localhost
-          DB_PORT=5432
-
-          # Optional Paymob values; configure real values in the deployment environment.
-          PAYMOB_API_KEY=
-          PAYMOB_INTEGRATION_ID=0
-          PAYMOB_IFRAME_ID=
-          PAYMOB_HMAC_SECRET=
-          EOF
-          cat > README.md <<'EOF'
-          # Daleel Backend
-
-          Django REST Framework API for Daleel: users/authentication, courses and enrollments, public scholarships/companies/team members, generic content, and schema-driven administration.
-
-          ## Local setup
-
-          Use Python 3.12 or later. Create and activate a virtual environment, then run:
-
-          ```bash
-          python -m venv .venv
-          # Activate .venv, then:
+          python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
-          cp .env.example .env
-          # Replace DJANGO_SECRET_KEY with a unique secret before use.
-          python manage.py migrate
-          python manage.py check
-          python manage.py runserver
-          ```
-
-          The backend uses SQLite when `DB_NAME` is empty. Configure all PostgreSQL fields to use PostgreSQL. The frontend development proxy runs at port 8080 by default, and those local origins are included in the development CORS configuration.
-
-          `/django-admin/` is Django's built-in admin site. The public React SPA is hosted separately from this API, so the backend does not attempt to render a frontend template that is not part of this branch.
-
-          ## Production notes
-
-          Set a strong `DJANGO_SECRET_KEY`, `DEBUG=False`, `ALLOWED_HOSTS`, and `CORS_ALLOWED_ORIGINS` using your host's environment configuration. Never commit real secrets. Paymob transaction behavior and production deployment must be tested with the appropriate sandbox/production settings.
-          EOF
-          python - <<'PY'
-          from pathlib import Path
-          path = Path("daleel_back/settings.py")
-          settings = path.read_text(encoding="utf-8")
-          old = """from datetime import timedelta
-          import os
-          from pathlib import Path
-
-          # Build paths inside the project like this: BASE_DIR / 'subdir'.
-          BASE_DIR = Path(__file__).resolve().parent.parent
-
-
-          SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'change-me-in-production')
-
-          DEBUG = os.environ.get('DEBUG', 'True') == 'True'
-
-          ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
-
-          # CORS — never combine CORS_ALLOW_ALL_ORIGINS with CORS_ALLOW_CREDENTIALS
-          # that lets any origin send credentialed requests.
-          # Set CORS_ALLOWED_ORIGINS in env for production.
-          _cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '')
-          if _cors_origins:
-              CORS_ALLOWED_ORIGINS = _cors_origins.split(',')
-          else:
-              CORS_ALLOW_ALL_ORIGINS = True   # dev only — fine without credentials
-
-          CORS_ALLOW_CREDENTIALS = True
-          """
-          new = """from datetime import timedelta
-          import os
-          from pathlib import Path
-
-          from django.core.exceptions import ImproperlyConfigured
-          from dotenv import load_dotenv
-
-          # Build paths inside the project like this: BASE_DIR / 'subdir'.
-          BASE_DIR = Path(__file__).resolve().parent.parent
-
-          # Load a local .env for development while allowing deployment environment
-          # variables to take precedence.
-          load_dotenv(BASE_DIR / ".env", override=False)
-
-          DEBUG = os.environ.get("DEBUG", "False").strip().lower() in {"1", "true", "yes", "on"}
-          _secret_key = os.environ.get("DJANGO_SECRET_KEY", "").strip()
-          if not _secret_key:
-              if not DEBUG:
-                  raise ImproperlyConfigured(
-                      "DJANGO_SECRET_KEY must be set whenever DEBUG=False."
-                  )
-              SECRET_KEY = "django-insecure-local-development-only-not-for-production"
-          else:
-              SECRET_KEY = _secret_key
-
-          _allowed_hosts = os.environ.get(
-              "ALLOWED_HOSTS", "localhost,127.0.0.1,[::1]"
-          )
-          ALLOWED_HOSTS = [host.strip() for host in _allowed_hosts.split(",") if host.strip()]
-          if not ALLOWED_HOSTS:
-              ALLOWED_HOSTS = ["localhost", "127.0.0.1", "[::1]"]
-
-          _cors_origins = [
-              origin.strip().rstrip("/")
-              for origin in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",")
-              if origin.strip()
-          ]
-          if not _cors_origins and DEBUG:
-              _cors_origins = [
-                  "http://localhost:8080",
-                  "http://127.0.0.1:8080",
-                  "http://localhost:5173",
-                  "http://127.0.0.1:5173",
-              ]
-          CORS_ALLOWED_ORIGINS = _cors_origins
-          CORS_ALLOW_CREDENTIALS = True
-
-          _csrf_origins = [
-              origin.strip().rstrip("/")
-              for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
-              if origin.strip()
-          ]
-          if _csrf_origins:
-              CSRF_TRUSTED_ORIGINS = _csrf_origins
-
-          SESSION_COOKIE_SECURE = not DEBUG
-          CSRF_COOKIE_SECURE = not DEBUG
-          SECURE_CONTENT_TYPE_NOSNIFF = True
-          SECURE_REFERRER_POLICY = "same-origin"
-          """
-          if old not in settings:
-              raise SystemExit("Expected original settings block was not found; refusing to patch blindly.")
-          settings = settings.replace(old, new, 1)
-          settings = settings.replace(
-              'STATIC_URL = \'static/\'\nSTATIC_ROOT = os.path.join(BASE_DIR, \'staticfiles\')\nSTATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"',
-              'STATIC_URL = "/static/"\nSTATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")\nSTORAGES = {\n    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},\n    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},\n}',
-              1,
-          )
-          # Remove the duplicate STATIC_URL declaration lower in the file.
-          settings = settings.replace(
-              "\n\n\n# https://docs.djangoproject.com/en/5.1/howto/static-files/\n\nSTATIC_URL = 'static/'\n",
-              "\n",
-              1,
-          )
-          path.write_text(settings, encoding="utf-8")
-          PY
-          # The frontend is deployed as its own SPA; avoid a backend catch-all for a
-          # template that is not present in this backend-only branch.
-          python - <<'PY'
-          from pathlib import Path
-          path = Path("daleel_back/urls.py")
-          urls = path.read_text(encoding="utf-8")
-          urls = urls.replace("from django.urls import path, include, re_path", "from django.urls import path, include")
-          urls = urls.replace("from core.views import admin_index\n", "")
-          urls = urls.replace(
-              '    # React SPA catch-all — serves nexus_admin/index.html for /admin/* routes\n    re_path(r"^admin/.*$", admin_index, name="admin_index"),\n',
-              "",
-          )
-          path.write_text(urls, encoding="utf-8")
-          PY
-          cat > content/tests.py <<'EOF'
-          from django.test import TestCase
-          from rest_framework.test import APIClient
-
-          class PublicApiSmokeTests(TestCase):
-              def test_public_course_list_is_available_to_anonymous_users(self):
-                  response = APIClient().get("/api/public/courses/")
-                  self.assertEqual(response.status_code, 200)
-
-              def test_admin_schema_is_not_available_to_anonymous_users(self):
-                  response = APIClient().get("/api/schema/")
-                  self.assertIn(response.status_code, (401, 403))
-          EOF
-          cat > /tmp/backend-checks.sh <<'EOF'
-          #!/usr/bin/env bash
-          set +e
-          cd "$1"
-          install_status=0
-          makemigrations_status=125
-          migration_check_status=125
-          migrate_status=125
-          check_status=125
-          tests_status=125
-          python -m pip install -r requirements.txt > /tmp/daleel-pip-install.log 2>&1
-          install_status=$?
-          tail -n 80 /tmp/daleel-pip-install.log || true
-          if [ "$install_status" -eq 0 ]; then
-            export DJANGO_SECRET_KEY="ci-only-not-for-production"
-            export DEBUG=True
-            export ALLOWED_HOSTS="localhost,127.0.0.1,[::1]"
-            python manage.py makemigrations --noinput > /tmp/daleel-makemigrations.log 2>&1
-            makemigrations_status=$?
-            tail -n 100 /tmp/daleel-makemigrations.log || true
-            python manage.py makemigrations --check --dry-run > /tmp/daleel-migration-check.log 2>&1
-            migration_check_status=$?
-            tail -n 100 /tmp/daleel-migration-check.log || true
-            python manage.py migrate --noinput > /tmp/daleel-migrate.log 2>&1
-            migrate_status=$?
-            tail -n 120 /tmp/daleel-migrate.log || true
-            python manage.py check > /tmp/daleel-check.log 2>&1
-            check_status=$?
-            tail -n 100 /tmp/daleel-check.log || true
-            python manage.py test > /tmp/daleel-tests.log 2>&1
-            tests_status=$?
-            tail -n 120 /tmp/daleel-tests.log || true
-          fi
-          status() { if [ "$1" -eq 0 ]; then echo "PASS"; elif [ "$1" -eq 125 ]; then echo "SKIPPED (dependency installation or earlier setup failed)"; else echo "FAIL (exit $1)"; fi; }
-          {
-            echo "# Backend Verification"
-            echo
-            echo "Generated by GitHub Actions on $(date -u '+%Y-%m-%d %H:%M UTC')."
-            echo
-            echo "| Check | Result |"
-            echo "|---|---|"
-            echo "| `pip install -r requirements.txt` | $(status "$install_status") |"
-            echo "| `python manage.py makemigrations --noinput` | $(status "$makemigrations_status") |"
-            echo "| `python manage.py makemigrations --check --dry-run` | $(status "$migration_check_status") |"
-            echo "| `python manage.py migrate --noinput` | $(status "$migrate_status") |"
-            echo "| `python manage.py check` | $(status "$check_status") |"
-            echo "| `python manage.py test` | $(status "$tests_status") |"
-            echo
-            echo "A failed or skipped check is not reported as passing. Inspect the corresponding GitHub Actions step logs for diagnostics."
-          } > VERIFICATION.md
-          exit 0
-          EOF
-          bash /tmp/backend-checks.sh "$TARGET"
-          git add -A
-          git commit -m "feat: split and harden Daleel backend branch"
-          git push origin backend
+      - name: Validate migrations
+        env:
+          DJANGO_SECRET_KEY: ci-only-not-for-production
+          DEBUG: "True"
+          ALLOWED_HOSTS: "localhost,127.0.0.1,[::1]"
+        run: python manage.py makemigrations --check --dry-run
+      - name: Apply migrations
+        env:
+          DJANGO_SECRET_KEY: ci-only-not-for-production
+          DEBUG: "True"
+          ALLOWED_HOSTS: "localhost,127.0.0.1,[::1]"
+        run: python manage.py migrate --noinput
+      - name: Django system check
+        env:
+          DJANGO_SECRET_KEY: ci-only-not-for-production
+          DEBUG: "True"
+          ALLOWED_HOSTS: "localhost,127.0.0.1,[::1]"
+        run: python manage.py check
+      - name: Run backend tests
+        env:
+          DJANGO_SECRET_KEY: ci-only-not-for-production
+          DEBUG: "True"
+          ALLOWED_HOSTS: "localhost,127.0.0.1,[::1]"
+        run: python manage.py test

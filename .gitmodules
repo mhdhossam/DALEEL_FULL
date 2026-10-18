@@ -1,0 +1,3 @@
+[submodule "daleel-source"]
+	path = daleel-source
+	url = https://github.com/mhdhossam/DALEELFULL.git

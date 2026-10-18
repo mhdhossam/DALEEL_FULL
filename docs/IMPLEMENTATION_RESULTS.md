@@ -1,30 +1,40 @@
 # Implementation Results and Verification Status
 
-**Scope reviewed:** the supplied frontend and backend ZIP archives and the corresponding source trees.
+**Repository:** [mhdhossam/DALEEL_FULL](https://github.com/mhdhossam/DALEEL_FULL)
 
 ## Branch layout
 
-- `frontend` contains the React + TypeScript + Vite frontend at the repository root.
-- `backend` contains the Django + Django REST Framework backend at the repository root.
-- Neither branch requires an application-source submodule to check out its code.
+- [`frontend`](https://github.com/mhdhossam/DALEEL_FULL/tree/frontend) contains the React + TypeScript + Vite application at the branch root.
+- [`backend`](https://github.com/mhdhossam/DALEEL_FULL/tree/backend) contains the Django + Django REST Framework API at the branch root.
+- Neither component requires an application-source submodule.
 
-## Frontend fixes
+## Frontend — verified checks
 
-- The first GitHub Actions run exposed an out-of-sync npm lockfile: `npm ci` stopped before the build, tests, or lint could run.
-- A CI repair job regenerates `package-lock.json` from `package.json`, then retries a clean install, production build, unit tests, and lint.
-- The latest command outcomes are recorded in `frontend/VERIFICATION.md` on the frontend branch.
+Successful CI run: [39092322569](https://github.com/mhdhossam/DALEEL_FULL/actions/runs/39092322569)
 
-## Backend fixes
+| Check | Result |
+|---|---|
+| Lockfile synchronization and `npm ci` | PASS |
+| Vite production build | PASS |
+| Vitest | PASS — 2 tests |
+| ESLint | PASS — 0 errors |
 
-- Added `requirements.txt` for Django, Django REST Framework, Simple JWT, CORS/filtering, WhiteNoise, Cloudinary storage, Pillow, requests, dotenv, PostgreSQL, and Gunicorn.
-- Added a `.gitignore` for secrets, Python bytecode/cache, local SQLite databases, and generated static files.
-- Removed the generated SQLite database and Python bytecode from source control while retaining the team's media assets.
-- Added dotenv loading so the documented `.env.example`/ `.env` local configuration works.
-- Replaced wildcard host/CORS defaults with explicit local development origins; production requires a configured secret key when DEBUG is false.
-- Configured local SQLite by default and documented PostgreSQL environment variables.
+The fixes remove the conditional React-hook call from `HeroSection`, fix two empty prop interfaces, and correct a constant-expression test. Explicit `any` uses are currently warnings during a typed migration, and other non-blocking warnings remain (37 total in the recorded run). So lint is passing, but the app is not yet warning-free.
 
-## Verification status
+## Backend — verified checks
 
-The backend branch contains an Actions workflow to install dependencies, check/generate migrations, migrate a clean SQLite database, run `python manage.py check`, and execute the Django tests. Its `VERIFICATION.md` records actual command outcomes after the CI run.
+Successful CI run: [39092343100](https://github.com/mhdhossam/DALEEL_FULL/actions/runs/39092343100)
 
-Source inspection and Python syntax compilation are not substitutes for a passing Django runtime check. Live payment transactions, production deployment, data migration, accessibility testing with assistive technology, and complete frontend/backend end-to-end flows remain outside the automated checks.
+| Check | Result |
+|---|---|
+| Install `requirements.txt` | PASS |
+| Migration consistency | PASS — no changes detected |
+| Apply migrations to clean SQLite | PASS |
+| Django system check | PASS — no issues |
+| Django tests | PASS — 5 tests |
+
+The added backend tests cover custom-user creation/password hashing and required fields, anonymous public course-list access, and course detail data. Generated SQLite/bytecode files and real `.env` files are excluded from the branch. Settings now load `.env`, use explicit allowed hosts/CORS values rather than wildcards, and require a secret key outside debug mode.
+
+## Still outside automated verification
+
+Live Paymob transactions, production deployment/credentials, production database migration, accessibility testing with assistive technology, and full end-to-end integration between the frontend and deployed backend are not covered by these CI runs.

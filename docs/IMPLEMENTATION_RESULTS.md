@@ -40,4 +40,4 @@ These are **source-inspection findings**, not benchmark scores or proof that eve
 
 ## Repository import note
 
-The GitHub repository was empty when inspected. This first commit adds project documentation only; the full application source and media assets from the supplied archives have not yet been copied into the repository.
+The target GitHub repository was initially empty. To make the full code available without manually re-encoding every binary asset, the repository is being connected to the existing public source repository through a Git submodule pinned to commit `ec9a87919437a77e324de5c6e6071691d3b65d00`. The checked-out submodule contains `daleel_frontend_generic_content_admin/` and `daleel_backend_generic_content_admin/`. These files are linked, not duplicated into the target repository's own tree.

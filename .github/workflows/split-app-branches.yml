@@ -31,11 +31,8 @@ jobs:
           path: target
 
       - name: Checkout source repository
-        uses: actions/checkout@v4
-        with:
-          repository: mhdhossam/DALEELFULL
-          ref: main
-          path: upstream
+        shell: bash
+        run: git clone --depth 1 --branch main https://github.com/mhdhossam/DALEELFULL.git upstream
 
       - name: Set up Node
         uses: actions/setup-node@v4
@@ -182,11 +179,8 @@ jobs:
           path: target
 
       - name: Checkout source repository
-        uses: actions/checkout@v4
-        with:
-          repository: mhdhossam/DALEELFULL
-          ref: main
-          path: upstream
+        shell: bash
+        run: git clone --depth 1 --branch main https://github.com/mhdhossam/DALEELFULL.git upstream
 
       - name: Set up Python
         uses: actions/setup-python@v5

@@ -1,0 +1,13 @@
+export const ROLES = {
+  ADMIN: "مسئول نظام",
+  INSTRUCTOR: "محاضر",
+  USER: "مستخدم",
+};
+
+export const PERMISSIONS = {
+  DELETE_USER: [ROLES.ADMIN],
+  EDIT_USER: [ROLES.ADMIN, ROLES.INSTRUCTOR],
+  DELETE_COURSE: [ROLES.ADMIN],
+  UPDATE_ORDER: [ROLES.ADMIN],
+  CANCEL_ORDER: [ROLES.ADMIN],
+};

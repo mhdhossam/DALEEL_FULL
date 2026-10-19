@@ -1,4 +1,5 @@
 import { Users, UserPlus } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import SEO from "@/components/SEO";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
@@ -12,6 +13,7 @@ import { AdminUsersTable } from "./components/AdminUsersTable";
 import { AdminPagination } from "@/components/common/AdminPagination";
 
 export default function AdminUsers() {
+  const navigate = useNavigate();
   const {
     searchTerm,
     handleSearch,
@@ -63,7 +65,7 @@ export default function AdminUsers() {
             </p>
           </div>
         </div>
-        <Button className="bg-primary hover:bg-primary/90 text-white rounded-xl px-6 py-6 h-auto shadow-lg shadow-primary/25 transition-all duration-300 hover:scale-105 relative z-10">
+        <Button onClick={() => navigate("/admin/resources/customuser")} className="bg-primary hover:bg-primary/90 text-white rounded-xl px-6 py-6 h-auto shadow-lg shadow-primary/25 transition-all duration-300 hover:scale-105 relative z-10">
           <UserPlus className="ml-2 w-5 h-5" />
           إضافة مستخدم جديد
         </Button>
